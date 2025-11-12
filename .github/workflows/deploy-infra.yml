@@ -1,30 +1,6 @@
-name: Deploy CloudFormation Infrastructure
-
-on:
-  push:
-    branches:
-      - dev
-      - main
-    paths:
-      - 'infra/**'
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1  # 👈 o ${{ secrets.AWS_REGION }}
-
       - name: Deploy CloudFormation stack
         run: |
+          set -e
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
             PARAMS_FILE="infra/params/prod.json"
             STACK_NAME="cloud-prod"
@@ -33,9 +9,13 @@ jobs:
             STACK_NAME="cloud-dev"
           fi
 
-          echo "Deploying stack: $STACK_NAME using $PARAMS_FILE"
+          echo "🚀 Deploying stack: $STACK_NAME using $PARAMS_FILE"
+
           aws cloudformation deploy \
             --stack-name $STACK_NAME \
             --template-file infra/templates/main.yaml \
-            --parameter-overrides file://$PARAMS_FILE \
-            --capabilities CAPABILITY_NAMED_IAM
+            --parameter-overrides $(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' $PARAMS_FILE) \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+          echo "✅ Stack deployed successfully: $STACK_NAME"
