@@ -1,21 +1,51 @@
-      - name: Deploy CloudFormation stack
+name: Deploy CloudFormation Infrastructure
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'infra/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set environment
+        id: env
         run: |
-          set -e
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            PARAMS_FILE="infra/params/prod.json"
-            STACK_NAME="cloud-prod"
+            echo "PARAMS_FILE=infra/params/prod.json" >> $GITHUB_ENV
+            echo "STACK_NAME=cloud-prod" >> $GITHUB_ENV
           else
-            PARAMS_FILE="infra/params/dev.json"
-            STACK_NAME="cloud-dev"
+            echo "PARAMS_FILE=infra/params/dev.json" >> $GITHUB_ENV
+            echo "STACK_NAME=cloud-dev" >> $GITHUB_ENV
           fi
 
-          echo "🚀 Deploying stack: $STACK_NAME using $PARAMS_FILE"
+      - name: Get AWS Region from parameters
+        id: region
+        run: |
+          REGION=$(jq -r '.[] | select(.ParameterKey=="Region") | .ParameterValue' ${{ env.PARAMS_FILE }})
+          echo "AWS_REGION=$REGION" >> $GITHUB_ENV
+          echo "Detected region: $REGION"
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy CloudFormation stack
+        run: |
+          echo "Deploying stack '${{ env.STACK_NAME }}' in region '${{ env.AWS_REGION }}'..."
           aws cloudformation deploy \
-            --stack-name $STACK_NAME \
+            --stack-name ${{ env.STACK_NAME }} \
             --template-file infra/templates/main.yaml \
-            --parameter-overrides $(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' $PARAMS_FILE) \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --no-fail-on-empty-changeset
-
-          echo "✅ Stack deployed successfully: $STACK_NAME"
+            --parameter-overrides file://${{ env.PARAMS_FILE }} \
+            --capabilities CAPABILITY_NAMED_IAM
