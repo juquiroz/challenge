@@ -26,10 +26,10 @@ jobs:
       - name: Deploy CloudFormation stack
         run: |
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            PARAMS_FILE="infra/params/prod-params.json"
+            PARAMS_FILE="infra/params/prod.json"
             STACK_NAME="cloud-prod"
           else
-            PARAMS_FILE="infra/params/dev-params.json"
+            PARAMS_FILE="infra/params/dev.json"
             STACK_NAME="cloud-dev"
           fi
 
