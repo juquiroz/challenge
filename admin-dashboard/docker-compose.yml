@@ -1,0 +1,34 @@
+services:
+  admin-dashboard:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    networks:
+     - cloudnet
+
+  # NOTE: The mysql block below is optional - it's up to you whether to use it
+  mysql:
+    image: mysql:8.0
+    env_file:
+      - .env.mysql
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+    networks:
+     - cloudnet
+
+volumes:
+  mysql-data:
+
+
+networks:
+  cloudnet:
+    external: true
