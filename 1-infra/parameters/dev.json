@@ -4,7 +4,19 @@
     "ParameterValue": "dev"
   },
   {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t3.micro"
+  },
+  {
     "ParameterKey": "KeyName",
     "ParameterValue": "dev-key"
+  },
+  {
+    "ParameterKey": "Region",
+    "ParameterValue": "us-east-1"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "dev-keypair"
   }
 ]

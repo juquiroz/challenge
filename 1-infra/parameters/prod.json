@@ -1,10 +1,22 @@
 [
   {
     "ParameterKey": "EnvironmentName",
-    "ParameterValue": "prod"
+    "ParameterValue": "dev"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t3.medium"
   },
   {
     "ParameterKey": "KeyName",
-    "ParameterValue": "prod-key"
+    "ParameterValue": "dev-key"
+  },
+  {
+    "ParameterKey": "Region",
+    "ParameterValue": "sa-east-1"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "dev-keypair"
   }
 ]
