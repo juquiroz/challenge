@@ -1,0 +1,48 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    paths:
+      - '1-infra/**'
+    branches:
+      - dev
+      - main
+
+jobs:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy Network Stack
+        run: |
+          aws cloudformation deploy \
+            --template-file 1-infra/cloudformation/network.yaml \
+            --stack-name network-${{ github.ref_name }} \
+            --parameter-overrides file://1-infra/parameters/${{ github.ref_name }}.json \
+            --capabilities CAPABILITY_NAMED_IAM
+
+      - name: Deploy EC2 Stack
+        run: |
+          VPC_ID=$(aws cloudformation describe-stacks --stack-name network-${{ github.ref_name }} --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text)
+          SUBNET_ID=$(aws cloudformation describe-stacks --stack-name network-${{ github.ref_name }} --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue" --output text)
+          SG_ID=$(aws cloudformation describe-stacks --stack-name network-${{ github.ref_name }} --query "Stacks[0].Outputs[?OutputKey=='SecurityGroupId'].OutputValue" --output text)
+
+          aws cloudformation deploy \
+            --template-file 1-infra/cloudformation/ec2.yaml \
+            --stack-name ec2-${{ github.ref_name }} \
+            --parameter-overrides \
+              EnvironmentName=${{ github.ref_name }} \
+              VpcId=$VPC_ID \
+              SubnetId=$SUBNET_ID \
+              SecurityGroupId=$SG_ID \
+              KeyName=${{ github.ref_name }}-key \
+            --capabilities CAPABILITY_NAMED_IAM
