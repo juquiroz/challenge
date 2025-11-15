@@ -7,7 +7,7 @@ on:
       - main
     paths:
       - 'templates/**'
-      - 'params/**'
+      - 'parameters/**'
 
 jobs:
   deploy:
