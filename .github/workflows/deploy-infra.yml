@@ -6,33 +6,38 @@ on:
       - development
       - main
     paths:
-      - 'infra/**'
+      - 'templates/**'
+      - 'params/**'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set environment
-        id: env
+      - name: Select params & stack
+        id: select
         run: |
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            echo "PARAMS_FILE=infra/params/prod.json" >> $GITHUB_ENV
-            echo "STACK_NAME=cloud-prod" >> $GITHUB_ENV
+            echo "PARAMS=templates/params/prod.json" >> $GITHUB_ENV
+            echo "STACK=cloud-prod" >> $GITHUB_ENV
           else
-            echo "PARAMS_FILE=infra/params/dev.json" >> $GITHUB_ENV
-            echo "STACK_NAME=cloud-dev" >> $GITHUB_ENV
+            echo "PARAMS=templates/params/dev.json" >> $GITHUB_ENV
+            echo "STACK=cloud-dev" >> $GITHUB_ENV
           fi
+          echo "Using $PARAMS"
 
-      - name: Get AWS Region from parameters
+      - name: Read Region from params
         id: region
         run: |
-          REGION=$(jq -r '.[] | select(.ParameterKey=="Region") | .ParameterValue' ${{ env.PARAMS_FILE }})
+          REGION=$(jq -r '.[] | select(.ParameterKey=="Region") | .ParameterValue' ${{ env.PARAMS }})
+          if [[ -z "$REGION" || "$REGION" == "null" ]]; then
+            echo "Region not found in params, defaulting to us-east-1"
+            REGION="us-east-1"
+          fi
           echo "AWS_REGION=$REGION" >> $GITHUB_ENV
-          echo "Detected region: $REGION"
+          echo "Detected region $REGION"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -41,11 +46,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy CloudFormation stack
+      - name: Validate template
         run: |
-          echo "Deploying stack '${{ env.STACK_NAME }}' in region '${{ env.AWS_REGION }}'..."
+          aws cloudformation validate-template --template-body file://templates/main.yaml
+
+      - name: Deploy stack
+        run: |
+          set -e
+          PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' ${{ env.PARAMS }})
           aws cloudformation deploy \
-            --stack-name ${{ env.STACK_NAME }} \
-            --template-file infra/templates/main.yaml \
-            --parameter-overrides file://${{ env.PARAMS_FILE }} \
-            --capabilities CAPABILITY_NAMED_IAM
+            --stack-name ${{ env.STACK }} \
+            --template-file templates/main.yaml \
+            --parameter-overrides $PARAMS \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Show outputs
+        run: |
+          aws cloudformation describe-stacks --stack-name ${{ env.STACK }} --query "Stacks[0].Outputs" --output table
