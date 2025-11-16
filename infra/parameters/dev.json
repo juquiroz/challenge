@@ -4,3 +4,4 @@
   { "ParameterKey": "InstanceType", "ParameterValue": "t3.micro" },
   { "ParameterKey": "Region", "ParameterValue": "ca-central-1" }
 ]
+

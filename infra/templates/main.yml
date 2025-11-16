@@ -112,3 +112,5 @@ Outputs:
     Value: !GetAtt AppInstance.PublicIp
   SecurityGroupId:
     Value: !Ref AppSecurityGroup
+
+    
