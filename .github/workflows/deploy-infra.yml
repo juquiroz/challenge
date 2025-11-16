@@ -1,11 +1,11 @@
-name: Deploy CloudFormation Infrastructure
-
 on:
   push:
     branches:
       - development
       - main
-
+    paths:
+      - 'infra/templates/**'
+      - 'infra/parameters/**'
 
 jobs:
   deploy:
@@ -18,10 +18,10 @@ jobs:
         id: select
         run: |
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            echo "PARAMS=templates/params/prod.json" >> $GITHUB_ENV
+            echo "PARAMS=infra/parameters/prod.json" >> $GITHUB_ENV
             echo "STACK=cloud-prod" >> $GITHUB_ENV
           else
-            echo "PARAMS=templates/params/dev.json" >> $GITHUB_ENV
+            echo "PARAMS=infra/parameters/dev.json" >> $GITHUB_ENV
             echo "STACK=cloud-dev" >> $GITHUB_ENV
           fi
 
@@ -41,3 +41,22 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ steps.region.outputs.region }}
+
+      - name: Validate template
+        run: |
+          aws cloudformation validate-template --template-body file://infra/templates/main.yml
+
+      - name: Deploy stack
+        run: |
+          set -e
+          PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' ${{ env.PARAMS }})
+          aws cloudformation deploy \
+            --stack-name ${{ env.STACK }} \
+            --template-file infra/templates/main.yml \
+            --parameter-overrides $PARAMS \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Show outputs
+        run: |
+          aws cloudformation describe-stacks --stack-name ${{ env.STACK }} --query "Stacks[0].Outputs" --output table
