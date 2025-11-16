@@ -1,6 +1,6 @@
 [
   { "ParameterKey": "Environment", "ParameterValue": "dev" },
-  { "ParameterKey": "KeyName", "ParameterValue": "dev-keypair" },
+  { "ParameterKey": "KeyName", "ParameterValue": "challenge-dev-keypair" },
   { "ParameterKey": "InstanceType", "ParameterValue": "t3.micro" },
   { "ParameterKey": "Region", "ParameterValue": "ca-central-1" }
 ]
