@@ -2,6 +2,7 @@
   { "ParameterKey": "Environment", "ParameterValue": "dev" },
   { "ParameterKey": "KeyName", "ParameterValue": "challenge-dev-keypair" },
   { "ParameterKey": "InstanceType", "ParameterValue": "t3.micro" },
-  { "ParameterKey": "Region", "ParameterValue": "ca-central-1" }
+  { "ParameterKey": "Region", "ParameterValue": "ca-central-1" },
+  { "ParameterKey": "ImageId", "ParameterValue": "ami-00ba806e3abc6df8b" }
 ]
 
