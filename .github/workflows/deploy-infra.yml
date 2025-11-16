@@ -3,9 +3,7 @@ on:
     branches:
       - development
       - main
-    paths:
-      - 'infra/templates/**'
-      - 'infra/parameters/**'
+
 
 jobs:
   deploy:
