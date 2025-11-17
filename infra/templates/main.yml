@@ -15,7 +15,7 @@ Parameters:
     Description: AMI ID for the EC2 instance
 
 Resources:
-  # --- Infra base (igual que tu template actual) ---
+  # --- Infra base ---
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -82,7 +82,7 @@ Resources:
         - Key: Name
           Value: !Sub "${Environment}-sg"
 
-  # --- Nuevo: Bucket S3 para los compose ---
+  # --- Bucket S3 para los compose ---
   DeployBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -152,19 +152,26 @@ Resources:
           #!/bin/bash
           set -e
           yum update -y
+          amazon-linux-extras enable docker
           amazon-linux-extras install docker -y
           systemctl enable docker
           systemctl start docker
           yum install -y amazon-ssm-agent
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
-          yum install -y docker-compose-plugin
-          yum install -y docker-compose-plugin
+          # instalar docker compose plugin
+          yum install -y docker-compose-plugin || true
+          # validar instalación, si falla instalar binario clásico
+          docker compose version || {
+            curl -L "https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+            ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose || true
+          }
           mkdir -p /home/ec2-user/apps
           chown ec2-user:ec2-user /home/ec2-user/apps
           su - ec2-user -c "docker network create cloudnet || true"
 
-  # --- Opcional: Usuario IAM para GitHub Actions con permisos de escritura ---
+  # --- Usuario IAM para GitHub Actions con permisos de escritura ---
   GitHubActionsUser:
     Type: AWS::IAM::User
     Properties:
