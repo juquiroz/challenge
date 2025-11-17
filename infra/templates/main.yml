@@ -159,6 +159,7 @@ Resources:
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
           yum install -y docker-compose-plugin
+          yum install -y docker-compose-plugin
           mkdir -p /home/ec2-user/apps
           chown ec2-user:ec2-user /home/ec2-user/apps
           su - ec2-user -c "docker network create cloudnet || true"
