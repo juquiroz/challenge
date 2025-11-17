@@ -81,21 +81,42 @@ Resources:
         - Key: Name
           Value: !Sub "${Environment}-sg"
 
+  AppInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref AppInstanceRole
+
   AppInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
-      ImageId: !Ref ImageId # Amazon Linux 2 (ejemplo en us-east-1) - actualizar si usas otra región
+      ImageId: !Ref ImageId
       IamInstanceProfile: !Ref AppInstanceProfile
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
           DeviceIndex: 0
           SubnetId: !Ref PublicSubnet
           GroupSet: [!Ref AppSecurityGroup]
-    Tags:
-      - Key: Name
-        Value: !Ref InstanceName
+      Tags:
+        - Key: Name
+          Value: cloud-dev
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -107,7 +128,6 @@ Resources:
           yum install -y amazon-ssm-agent
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
-          # create app folders and docker network
           mkdir -p /home/ec2-user/apps
           chown ec2-user:ec2-user /home/ec2-user/apps
           su - ec2-user -c "docker network create cloudnet || true"
@@ -119,5 +139,3 @@ Outputs:
     Value: !GetAtt AppInstance.PublicIp
   SecurityGroupId:
     Value: !Ref AppSecurityGroup
-
-    
