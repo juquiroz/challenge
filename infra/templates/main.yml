@@ -15,6 +15,7 @@ Parameters:
     Description: AMI ID for the EC2 instance
 
 Resources:
+  # --- Infra base (igual que tu template actual) ---
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -81,7 +82,7 @@ Resources:
         - Key: Name
           Value: !Sub "${Environment}-sg"
 
-  # 🚀 Bucket S3 para los docker-compose.yml
+  # --- Nuevo: Bucket S3 para los compose ---
   DeployBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -97,6 +98,7 @@ Resources:
         - Key: Name
           Value: !Sub "${Environment}-deploy-bucket"
 
+  # --- Rol de la instancia con permisos de S3 ---
   AppInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -121,8 +123,8 @@ Resources:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket
-                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket/*
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}/*
 
   AppInstanceProfile:
     Type: AWS::IAM::InstanceProfile
