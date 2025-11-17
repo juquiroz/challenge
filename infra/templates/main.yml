@@ -87,6 +87,7 @@ Resources:
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
       ImageId: !Ref ImageId # Amazon Linux 2 (ejemplo en us-east-1) - actualizar si usas otra región
+      IamInstanceProfile: !Ref AppInstanceProfile
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
           DeviceIndex: 0
