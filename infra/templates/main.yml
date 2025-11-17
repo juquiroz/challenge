@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Base infra for apps (VPC + Subnet + SG + EC2)
+Description: Base infra for apps (VPC + Subnet + SG + EC2 + S3 bucket)
 
 Parameters:
   Environment:
@@ -81,6 +81,22 @@ Resources:
         - Key: Name
           Value: !Sub "${Environment}-sg"
 
+  # 🚀 Bucket S3 para los docker-compose.yml
+  DeployBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${Environment}-deploy-bucket"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-deploy-bucket"
+
   AppInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -95,6 +111,18 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Policies:
+        - PolicyName: S3ReadAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket/*
 
   AppInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -128,6 +156,7 @@ Resources:
           yum install -y amazon-ssm-agent
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
+          yum install -y docker-compose-plugin
           mkdir -p /home/ec2-user/apps
           chown ec2-user:ec2-user /home/ec2-user/apps
           su - ec2-user -c "docker network create cloudnet || true"
@@ -139,3 +168,5 @@ Outputs:
     Value: !GetAtt AppInstance.PublicIp
   SecurityGroupId:
     Value: !Ref AppSecurityGroup
+  DeployBucketName:
+    Value: !Ref DeployBucket
