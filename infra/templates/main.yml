@@ -146,7 +146,7 @@ Resources:
           GroupSet: [!Ref AppSecurityGroup]
       Tags:
         - Key: Name
-          Value: cloud-dev
+          Value: cloud-dev-instance
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
