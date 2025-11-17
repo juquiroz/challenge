@@ -57,3 +57,4 @@ jobs:
       - name: Show outputs
         run: |
           aws cloudformation describe-stacks --stack-name ${{ env.STACK }} --query "Stacks[0].Outputs" --output table
+          
