@@ -163,6 +163,25 @@ Resources:
           chown ec2-user:ec2-user /home/ec2-user/apps
           su - ec2-user -c "docker network create cloudnet || true"
 
+  # --- Opcional: Usuario IAM para GitHub Actions con permisos de escritura ---
+  GitHubActionsUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${Environment}-github-actions"
+      Policies:
+        - PolicyName: S3WriteAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}/*
+
 Outputs:
   InstanceId:
     Value: !Ref AppInstance
