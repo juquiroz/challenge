@@ -193,6 +193,15 @@ Resources:
 
           # Crear red docker si no existe
           su - ec2-user -c "docker network create cloudnet || true"
+  # --- Elastic IP ---
+  AppElasticIP:
+    Type: AWS::EC2::EIP
+
+  AppEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref AppInstance
+      EIP: !Ref AppElasticIP
 
   # --- Usuario IAM para GitHub Actions con permisos de escritura ---
   GitHubActionsUser:
