@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Base infra for apps (VPC + Subnet + SG + EC2 + S3 bucket)
+Description: Base infra for apps (VPC + Subnet + SG + EC2 + S3 bucket + Elastic IP)
 
 Parameters:
   Environment:
@@ -164,22 +164,17 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           set -e
-          # Actualizar sistema y habilitar docker
           yum update -y
           amazon-linux-extras enable docker
           amazon-linux-extras install docker -y
           systemctl enable docker
           systemctl start docker
 
-          # Instalar y activar SSM
           yum install -y amazon-ssm-agent
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
 
-          # Intentar instalar plugin oficial de docker compose
           yum install -y docker-compose-plugin || true
-
-          # Validar instalación, si falla instalar binario clásico
           docker compose version || {
             echo "Plugin docker compose no disponible, instalando binario clásico..."
             curl -L "https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -187,12 +182,10 @@ Resources:
             ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose || true
           }
 
-          # Crear carpeta base para apps
           mkdir -p /home/ec2-user/apps
           chown ec2-user:ec2-user /home/ec2-user/apps
-
-          # Crear red docker si no existe
           su - ec2-user -c "docker network create cloudnet || true"
+
   # --- Elastic IP ---
   AppElasticIP:
     Type: AWS::EC2::EIP
@@ -225,8 +218,8 @@ Resources:
 Outputs:
   InstanceId:
     Value: !Ref AppInstance
-  PublicIP:
-    Value: !GetAtt AppInstance.PublicIp
+  ElasticIP:
+    Value: !Ref AppElasticIP
   SecurityGroupId:
     Value: !Ref AppSecurityGroup
   DeployBucketName:
