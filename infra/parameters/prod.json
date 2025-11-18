@@ -1,0 +1,6 @@
+[
+  { "ParameterKey": "Environment", "ParameterValue": "prod" },
+  { "ParameterKey": "KeyName", "ParameterValue": "prod-keypair" },
+  { "ParameterKey": "InstanceType", "ParameterValue": "t3.small" },
+  { "ParameterKey": "Region", "ParameterValue": "us-east-1" }
+]

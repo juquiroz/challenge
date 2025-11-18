@@ -1,0 +1,12 @@
+[
+  { "ParameterKey": "Environment", "ParameterValue": "dev" },
+  { "ParameterKey": "KeyName", "ParameterValue": "challenge-dev-keypair" },
+  { "ParameterKey": "InstanceType", "ParameterValue": "t3.micro" },
+  { "ParameterKey": "Region", "ParameterValue": "ca-central-1" },
+  { "ParameterKey": "ImageId", "ParameterValue": "ami-00ba806e3abc6df8b" },
+  { "ParameterKey": "AdminRepo", "ParameterValue": "039612870052.dkr.ecr.ca-central-1.amazonaws.com/admin-dashboard" },
+  { "ParameterKey": "PublicRepo", "ParameterValue": "039612870052.dkr.ecr.ca-central-1.amazonaws.com/public-app" },
+  { "ParameterKey": "ServiceRepo", "ParameterValue": "039612870052.dkr.ecr.ca-central-1.amazonaws.com/service" },
+  { "ParameterKey": "InstanceName", "ParameterValue": "cloud-dev" }
+]
+

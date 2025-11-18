@@ -1,0 +1,233 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Base infra for apps (VPC + Subnet + SG + EC2 + S3 bucket)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: AMI ID for the EC2 instance
+  AdminFolder:
+    Type: String
+    Default: admin-dashboard
+  ServiceFolder:
+    Type: String
+    Default: service
+  PublicFolder:
+    Type: String
+    Default: public-app
+
+Resources:
+  # --- Infra base ---
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-vpc"
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-public-subnet"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  Route:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref RouteTable
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH & app ports
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-sg"
+
+  # --- Bucket S3 para los compose ---
+  DeployBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${Environment}-deploy-bucket-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-deploy-bucket"
+
+  # --- Rol de la instancia con permisos de S3 ---
+  AppInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Policies:
+        - PolicyName: S3ReadAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}/*
+
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref AppInstanceRole
+
+  AppInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      ImageId: !Ref ImageId
+      IamInstanceProfile: !Ref AppInstanceProfile
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref PublicSubnet
+          GroupSet: [!Ref AppSecurityGroup]
+      Tags:
+        - Key: Name
+          Value: cloud-dev-instance
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          # Actualizar sistema y habilitar docker
+          yum update -y
+          amazon-linux-extras enable docker
+          amazon-linux-extras install docker -y
+          systemctl enable docker
+          systemctl start docker
+
+          # Instalar y activar SSM
+          yum install -y amazon-ssm-agent
+          systemctl enable amazon-ssm-agent
+          systemctl start amazon-ssm-agent
+
+          # Intentar instalar plugin oficial de docker compose
+          yum install -y docker-compose-plugin || true
+
+          # Validar instalación, si falla instalar binario clásico
+          docker compose version || {
+            echo "Plugin docker compose no disponible, instalando binario clásico..."
+            curl -L "https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+            ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose || true
+          }
+
+          # Crear carpeta base para apps
+          mkdir -p /home/ec2-user/apps
+          chown ec2-user:ec2-user /home/ec2-user/apps
+
+          # Crear red docker si no existe
+          su - ec2-user -c "docker network create cloudnet || true"
+  # --- Elastic IP ---
+  AppElasticIP:
+    Type: AWS::EC2::EIP
+
+  AppEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref AppInstance
+      EIP: !Ref AppElasticIP
+
+  # --- Usuario IAM para GitHub Actions con permisos de escritura ---
+  GitHubActionsUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${Environment}-github-actions"
+      Policies:
+        - PolicyName: S3WriteAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}
+                  - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}/*
+
+Outputs:
+  InstanceId:
+    Value: !Ref AppInstance
+  PublicIP:
+    Value: !GetAtt AppInstance.PublicIp
+  SecurityGroupId:
+    Value: !Ref AppSecurityGroup
+  DeployBucketName:
+    Value: !Ref DeployBucket
