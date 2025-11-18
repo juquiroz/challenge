@@ -1,4 +1,4 @@
-# 🚀 Infraestructura Base - Challenge Deployment
+# 🚀 Infraestructura Base 
 
 Este proyecto define y despliega la infraestructura necesaria para correr nuestras aplicaciones (**admin-dashboard**, **public-app**, **service**) en AWS usando **CloudFormation** y **GitHub Actions**.
 
@@ -29,7 +29,7 @@ Componentes creados:
         dev.json            # Parámetros para entorno dev
         prod.json           # Parámetros para entorno prod
     workflows/
-        deploy.yml          # GitHub Actions workflow para despliegue
+        deploy-infra.yml   # GitHub Actions workflow para despliegue
 
 
 📦 Dependencias
@@ -95,3 +95,4 @@ Seguridad:
         { "ParameterKey": "ServiceRepo", "ParameterValue": "039612870052.dkr.ecr.ca-central-1.amazonaws.com/service" },
         { "ParameterKey": "InstanceName", "ParameterValue": "cloud-dev" }
         ]
+    
