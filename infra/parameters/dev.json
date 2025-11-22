@@ -7,6 +7,8 @@
   { "ParameterKey": "AdminRepo", "ParameterValue": "039612870052.dkr.ecr.ca-central-1.amazonaws.com/admin-dashboard" },
   { "ParameterKey": "PublicRepo", "ParameterValue": "039612870052.dkr.ecr.ca-central-1.amazonaws.com/public-app" },
   { "ParameterKey": "ServiceRepo", "ParameterValue": "039612870052.dkr.ecr.ca-central-1.amazonaws.com/service" },
-  { "ParameterKey": "InstanceName", "ParameterValue": "cloud-dev" }
+  { "ParameterKey": "InstanceName", "ParameterValue": "cloud-dev" },
+  { "ParameterKey": "StopHourUTC", "ParameterValue": "4" },
+  { "ParameterKey": "StartHourUTC", "ParameterValue": "0" }
 ]
 

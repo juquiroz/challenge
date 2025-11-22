@@ -22,8 +22,16 @@ Parameters:
   PublicFolder:
     Type: String
     Default: public-app
+  StopHourUTC:
+    Type: Number
+    Default: 4
+    Description: Hora en UTC para apagar la instancia (ej. 4 = 11 p.m. Panamá)
+  StartHourUTC:
+    Type: Number
+    Default: 0
+    Description: Hora en UTC para encender la instancia (ej. 0 = 7 p.m. Panamá)
 
-Resources:
+    Resources:
   # --- Infra base ---
   VPC:
     Type: AWS::EC2::VPC
