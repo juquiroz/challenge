@@ -215,6 +215,67 @@ Resources:
                   - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}
                   - !Sub arn:aws:s3:::${Environment}-deploy-bucket-${AWS::AccountId}/*
 
+  # --- Rol para Lambda con permisos de apagar EC2 ---
+  StopInstanceLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StopEC2Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:StopInstances
+                Resource: "*"
+
+  # --- Función Lambda para apagar la instancia ---
+  StopInstanceLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-stop-ec2"
+      Handler: index.lambda_handler
+      Role: !GetAtt StopInstanceLambdaRole.Arn
+      Runtime: python3.9
+      Timeout: 30
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          def lambda_handler(event, context):
+              ec2 = boto3.client('ec2')
+              ec2.stop_instances(InstanceIds=['${AppInstance}'])
+              return "Instancia apagada"
+
+  # --- Regla de EventBridge para ejecutar la Lambda cada noche ---
+  StopInstanceSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${Environment}-stop-ec2-schedule"
+      ScheduleExpression: "cron(0 3 * * ? *)" # 3am UTC = 10pm Panamá
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt StopInstanceLambda.Arn
+          Id: "StopEC2Target"
+
+  # --- Permiso para que EventBridge invoque la Lambda ---
+  StopInstancePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StopInstanceLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt StopInstanceSchedule.Arn
+
+
 Outputs:
   InstanceId:
     Value: !Ref AppInstance
